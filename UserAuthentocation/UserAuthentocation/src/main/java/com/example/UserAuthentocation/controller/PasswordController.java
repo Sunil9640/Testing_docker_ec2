@@ -5,14 +5,19 @@ import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 
+import com.example.UserAuthentocation.Exceptions.OtpExpiredException;
+import com.example.UserAuthentocation.Exceptions.OtpInvalidException;
 import com.example.UserAuthentocation.entity.PasswordResetOtp;
 import com.example.UserAuthentocation.entity.User;
 import com.example.UserAuthentocation.repository.OtpRepository;
 import com.example.UserAuthentocation.repository.UserRepository;
 import com.example.UserAuthentocation.service.EmailService;
 
+@Controller
 public class PasswordController {
 
 	@Autowired
@@ -22,9 +27,16 @@ public class PasswordController {
 
 	@Autowired
 	UserRepository userRepository ;
+	
+	// SHOW forgot password page
+    @GetMapping("/forgot-password")
+    public String showForgotPasswordPage() {
+        return "forgot-password";
+    }
 
 	@PostMapping("/forgot-password")
 	public String forgotPassword(String email) {
+		System.out.println("Calling the forgot Password methods :=");
 	    String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
 	    PasswordResetOtp resetOtp = new PasswordResetOtp();
@@ -34,17 +46,23 @@ public class PasswordController {
 
 	    otpRepository.save(resetOtp);
 	    emailService.sendOtpEmail(email, otp);
-
+	    
 	    return "verify-otp";
 	}
 
 
 	@PostMapping("/verify-otp")
 	public String verifyOtp(String email, String otp) {
-
+		System.out.println("Calling the verfy OTP methods :=");
 	    PasswordResetOtp resetOtp =
 	            otpRepository.findByEmailAndOtp(email, otp);
-
+	    if(resetOtp==null) {
+	    	throw new OtpInvalidException("Invalid OTP,Please Check once");
+	    }
+	    
+	    if(resetOtp.getExpiryTime().isBefore(LocalDateTime.now())) {
+	    	throw new OtpExpiredException("OTP has expired. Please request a new one.");
+	    }
 	    if (resetOtp != null &&
 	        resetOtp.getExpiryTime().isAfter(LocalDateTime.now())) {
 	        return "reset-password";
@@ -55,12 +73,12 @@ public class PasswordController {
 
 	@PostMapping("/reset-password")
 	public String resetPassword(String email, String password) {
-
+		System.out.println("Calling the reset password methods :=");
 	    User user = userRepository.findByEmail(email).orElse(null);
 	    if (user != null) {
 	        user.setPassword(new BCryptPasswordEncoder().encode(password));
 	        userRepository.save(user);
-	    }
+	    } 
 	    return "login";
 	}
 
