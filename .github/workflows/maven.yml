@@ -27,6 +27,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         cache: maven
+        - name: Debug workspace
+  run: |
+    pwd
+    ls -la
+    echo "Searching for pom.xml..."
+    find . -maxdepth 3 -name "pom.xml" -print
     - name: Build with Maven
       run: mvn clean install 
 
